@@ -55,26 +55,30 @@
     self.numberOfActiveViews = 4;
     self.mutableHistory = [NSMutableArray array];
     self.numberOfHistoryItem = 10;
-
+    
     self.allowedDirection = ZLSwipeableViewDirectionAll;
     self.minTranslationInPercent = 0.25;
     self.minVelocityInPointPerSecond = 750;
-
+    
     self.containerView = [[UIView alloc] initWithFrame:self.bounds];
     [self addSubview:self.containerView];
-
+    
     self.miscContainerView = [[UIView alloc] initWithFrame:CGRectZero];
     [self addSubview:self.miscContainerView];
-
+    
     self.animator = [[UIDynamicAnimator alloc] initWithReferenceView:self];
-
+    
     self.viewManagers = [NSMutableDictionary dictionary];
-
+    
     self.scheduler = [[Scheduler alloc] init];
-
+    
     self.viewAnimator = [[DefaultViewAnimator alloc] init];
     self.swipingDeterminator = [[DefaultShouldSwipeDeterminator alloc] init];
     self.directionInterpretor = [[DefaultDirectionInterpretor alloc] init];
+}
+
+- (void)dealloc {
+    NSLog(@"%@ dealloc", [self class]);
 }
 
 - (void)layoutSubviews {
@@ -95,16 +99,17 @@
 }
 
 - (NSArray<UIView *> *)activeViews {
+    __weak ZLSwipeableView *weakSelf = self;
     NSPredicate *notSwipingViews =
-        [NSPredicate predicateWithBlock:^BOOL(UIView *view, NSDictionary *bindings) {
-          ViewManager *manager = [self managerForView:view];
-          if (!manager) {
-              return false;
-          }
-          return manager.state != ViewManagerStateSwiping;
-        }];
+    [NSPredicate predicateWithBlock:^BOOL(UIView *view, NSDictionary *bindings) {
+        ViewManager *manager = [weakSelf managerForView:view];
+        if (!manager) {
+            return false;
+        }
+        return manager.state != ViewManagerStateSwiping;
+    }];
     return [[[[self allViews]
-        filteredArrayUsingPredicate:notSwipingViews] reverseObjectEnumerator] allObjects];
+              filteredArrayUsingPredicate:notSwipingViews] reverseObjectEnumerator] allObjects];
 }
 
 - (void)loadViewsIfNeeded {
@@ -119,18 +124,18 @@
 
 - (void)rewind {
     UIView *viewToBeRewinded;
-
+    
     if (_mutableHistory.lastObject) {
         viewToBeRewinded = _mutableHistory.lastObject;
         [_mutableHistory removeLastObject];
     } else {
         viewToBeRewinded = [self previousView];
     }
-
+    
     if (!viewToBeRewinded) {
         return;
     }
-
+    
     [self insert:viewToBeRewinded atIndex:[self allViews].count];
     [self updateViews];
 }
@@ -162,13 +167,13 @@
     if (!topView) {
         return;
     }
-
+    
     ZLSwipeableViewSwipeOptions *swipeOptions =
-        [_directionInterpretor interpretDirection:direction
-                                             view:topView
-                                            index:0
-                                            views:[self activeViews]
-                                    swipeableView:self];
+    [_directionInterpretor interpretDirection:direction
+                                         view:topView
+                                        index:0
+                                        views:[self activeViews]
+                                swipeableView:self];
     [self swipeTopViewFromPoint:swipeOptions.location inDirection:swipeOptions.direction];
 }
 
@@ -193,10 +198,10 @@
 - (NSArray<UIView *> *)inactiveViews {
     NSArray<UIView *> *activeViews = [self activeViews];
     return [[[[self allViews]
-        filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(UIView *view,
-                                                                          NSDictionary *bindings) {
-          return ![activeViews containsObject:view];
-        }]] reverseObjectEnumerator] allObjects];
+              filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(UIView *view,
+                                                                                NSDictionary *bindings) {
+        return ![activeViews containsObject:view];
+    }]] reverseObjectEnumerator] allObjects];
 }
 
 - (void)insert:(UIView *_Nonnull)view atIndex:(NSUInteger)index {
@@ -208,7 +213,7 @@
         [viewManager setStateSnappingAtContainerViewCenter];
         return;
     }
-
+    
     ViewManager *viewManager = [[ViewManager alloc] initWithView:view
                                                    containerView:self.containerView
                                                            index:index
@@ -222,18 +227,18 @@
     if (![[self allViews] containsObject:view]) {
         return;
     }
-
+    
     [self removeManagerForView:view];
 }
 
 - (void)updateViews {
     NSArray<UIView *> *activeViews = [self activeViews];
     NSArray<UIView *> *inactiveViews = [self inactiveViews];
-
+    
     for (UIView *view in inactiveViews) {
         view.userInteractionEnabled = false;
     }
-
+    
     UIView *topView = [self topView];
     if (!topView) {
         return;
@@ -243,7 +248,7 @@
             return;
         }
     }
-
+    
     for (NSUInteger i = 0; i < activeViews.count; i++) {
         UIView *view = activeViews[i];
         view.userInteractionEnabled = true;
@@ -259,18 +264,19 @@
 - (void)swipeView:(UIView *)view
          location:(CGPoint)location
   directionVector:(CGVector)directionVector {
-
+    
     [[self managerForView:view] setStateSwiping:location direction:directionVector];
-
+    
     ZLSwipeableViewDirection direction = ZLSwipeableViewDirectionFromVector(directionVector);
-
+    
+    __weak ZLSwipeableView *weakSelf = self;
     NSPredicate *outOfBoundViews =
-        [NSPredicate predicateWithBlock:^BOOL(UIView *view, NSDictionary *bindings) {
-          return !CGRectIntersectsRect([_containerView convertRect:view.frame toView:nil],
-                                       [UIScreen mainScreen].bounds);
-        }];
+    [NSPredicate predicateWithBlock:^BOOL(UIView *view, NSDictionary *bindings) {
+        return !CGRectIntersectsRect([weakSelf.containerView convertRect:view.frame toView:nil],
+                                     [UIScreen mainScreen].bounds);
+    }];
     [self scheduleToBeRemoved:view withPredicate:outOfBoundViews];
-
+    
     if (_delegate &&
         [_delegate respondsToSelector:@selector(swipeableView:didSwipeView:inDirection:)]) {
         [_delegate swipeableView:self didSwipeView:view inDirection:direction];
@@ -282,21 +288,22 @@
     if (![[self allViews] containsObject:view]) {
         return;
     }
-
+    
     [_mutableHistory addObject:view];
     if (_mutableHistory.count > _numberOfHistoryItem) {
         [_mutableHistory removeObjectAtIndex:0];
     }
-
+    
+    __weak ZLSwipeableView *weakSelf = self;
     [_scheduler scheduleActionRepeatedly:^{
-      NSArray *matchedViews = [[self inactiveViews] filteredArrayUsingPredicate:predicate];
-      for (UIView *view in matchedViews) {
-          [self remove:view];
-      }
+        NSArray *matchedViews = [[weakSelf inactiveViews] filteredArrayUsingPredicate:predicate];
+        for (UIView *view in matchedViews) {
+            [weakSelf remove:view];
+        }
     } interval:0.3
-        endCondition:^BOOL {
-          return [self activeViews].count == [self allViews].count;
-        }];
+                            endCondition:^BOOL {
+                                return [weakSelf activeViews].count == [weakSelf allViews].count;
+                            }];
 }
 
 #pragma mark - ()

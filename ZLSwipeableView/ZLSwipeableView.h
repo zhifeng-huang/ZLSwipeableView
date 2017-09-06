@@ -106,8 +106,8 @@ typedef NS_ENUM(NSUInteger, ZLSwipeableViewDirection) {
 
 // Customization
 @property (nonatomic, weak) id<ZLSwipeableViewAnimator> viewAnimator;
-@property (nonatomic, weak) id<ZLSwipeableViewDirectionInterpretor> directionInterpretor;
-@property (nonatomic, weak) id<ZLSwipeableViewSwipingDeterminator> swipingDeterminator;
+@property (nonatomic, strong) id<ZLSwipeableViewDirectionInterpretor> directionInterpretor;
+@property (nonatomic, strong) id<ZLSwipeableViewSwipingDeterminator> swipingDeterminator;
 @property (nonatomic) CGFloat minTranslationInPercent;
 @property (nonatomic) CGFloat minVelocityInPointPerSecond;
 @property (nonatomic) ZLSwipeableViewDirection allowedDirection;
